@@ -57,12 +57,14 @@ class HeistLogic:
         if robber_site_id == victim_site_id:
             return "CANNOT_ROB_SELF", {}
 
+        max_attempts = heist_conf.get('max_attempts_per_day', 1)
         robber_attempts = await self.core.get_today_heist_counts_by_qq(robber_qq_id)
-        if robber_attempts >= heist_conf.get('max_attempts_per_day', 1):
+        if robber_attempts >= max_attempts:
             return "ATTEMPTS_EXCEEDED", {}
 
+        max_defenses = heist_conf.get('max_defenses_per_day', 3)
         victim_defenses = await self.core.get_today_defenses_count_by_id(victim_site_id)
-        if victim_defenses >= heist_conf.get('max_defenses_per_day', 3):
+        if victim_defenses >= max_defenses:
             return "DEFENSES_EXCEEDED", {"victim_id": victim_site_id}
         
         return "VALID", {"robber_site_id": robber_site_id, "victim_site_id": victim_site_id, "heist_conf": heist_conf}

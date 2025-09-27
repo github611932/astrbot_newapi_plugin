@@ -20,7 +20,7 @@
 
 ## ⚙️ 核心配置 (重要)
 
-在您使用本插件前，请务必完成以下三个步骤的配置。
+在您使用本插件前，请务必完成以下两个步骤的配置。
 
 ### **第一步：配置 `.env` 文件**
 
@@ -45,36 +45,9 @@ API_ACCESS_TOKEN=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 API_ADMIN_USER_ID=1
 ```
 
-### **第二步：配置数据库**
+*插件启动时会自动在您指定的数据库中创建所需的数据表，您无需手动操作。*
 
-本插件需要使用一个 **MySQL** 或 **MariaDB** 数据库来存储用户绑定关系和打劫日志。请连接到您的数据库，并执行以下 SQL 语句来创建所需的数据表：
-
-```sql
--- 用户绑定信息表
-CREATE TABLE `newapi_bindings` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `qq_id` bigint(20) NOT NULL,
-  `website_user_id` int(11) NOT NULL,
-  `binding_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `last_check_in_time` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `qq_id` (`qq_id`),
-  UNIQUE KEY `website_user_id` (`website_user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 每日打劫日志表
-CREATE TABLE `daily_heist_log` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `robber_qq_id` bigint(20) NOT NULL,
-  `victim_website_id` int(11) NOT NULL,
-  `heist_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `outcome` varchar(10) NOT NULL COMMENT 'SUCCESS, CRITICAL, FAILURE',
-  `amount` int(11) NOT NULL COMMENT '涉及的原始 quota 数额',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
-
-### **第三步：配置插件 UI**
+### **第二步：配置插件 UI**
 
 剩下的所有功能性配置，例如签到奖励额度、打劫成功率、消息模板、监控群号等，都可以在 AstrBot 的 **WebUI 插件界面** 中进行图形化配置，非常方便。
 

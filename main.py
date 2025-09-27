@@ -41,7 +41,7 @@ def require_binding(f):
     "NewAPI_plugin",
     "Future-404",
     "集成了核心用户管理与娱乐功能的New API插件套件。",
-    "1.0.0"
+    "1.1.0"
 )
 class NewApiSuitePlugin(Star):
     """
@@ -67,7 +67,7 @@ class NewApiSuitePlugin(Star):
     async def handle_ping_command(self, event: AstrMessageEvent):
         """响应ping命令，并报告数据库状态。"""
         db_status = "✅ 已连接" if self.core.db_pool is not None else "❌ 连接失败"
-        reply = f"""🎉 Pong! NewAPI 插件套件 V1.0.0 正在运行！
+        reply = f"""🎉 Pong! NewAPI 插件套件 V1.1.0 正在运行！
 --------------------
 数据库状态: {db_status}"""
         yield event.plain_result(reply)
@@ -133,7 +133,9 @@ class NewApiSuitePlugin(Star):
         reply = ""
         match status:
             case "SUCCESS":
-                if details["is_first"] and check_in_conf.get('first_check_in_bonus_enabled', False):
+                first_bonus_enabled = check_in_conf.get('first_check_in_bonus_enabled', False)
+                
+                if details["is_first"] and first_bonus_enabled:
                     template = check_in_conf.get('first_check_in_success_template')
                 elif details["is_doubled"]:
                     template = check_in_conf.get('check_in_doubled_template')
@@ -158,7 +160,6 @@ class NewApiSuitePlugin(Star):
                 reply = "签到时发生未知错误，请联系管理员。"
         
         yield event.plain_result(reply)
-
     @filter.command("解绑")
     @filter.permission_type(filter.PermissionType.ADMIN)
     async def handle_unbind_command(self, event: AstrMessageEvent, website_user_id: int):
@@ -261,30 +262,38 @@ QQ号: {binding['qq_id']}
         # 4. 根据结果生成回复
         heist_conf = self.config.get('heist_settings', {})
         reply = ""
+
+        # --- 缓存模板 ---
+        success_template = heist_conf.get('success_template', "成功: +{gain:.2f}")
+        critical_template = heist_conf.get('critical_template', "暴击: +{gain:.2f}")
+        failure_template = heist_conf.get('failure_template', "失败: -{penalty:.2f}")
+        disabled_template = heist_conf.get('disabled_template', "⚔️ 打劫活动尚未开启。" )
+        robber_not_bound_template = heist_conf.get('robber_not_bound_template', "🤔 请先绑定账号。" )
+        victim_not_found_template = heist_conf.get('victim_not_found_template', "💨 未找到目标 {victim_identifier}。" )
+        cannot_rob_self_template = heist_conf.get('cannot_rob_self_template', "🤦‍♂️ 不能打劫自己。" )
+        attempts_exceeded_template = heist_conf.get('attempts_exceeded_template', "🥵 次数用尽。" )
+        defenses_exceeded_template = heist_conf.get('defenses_exceeded_template', "🛡️ 对方已有防备 (ID:{victim_id})。" )
+        # --- 缓存结束 ---
+
         match status:
             case "SUCCESS":
-                template = heist_conf.get('success_template', "成功: +{gain:.2f}")
-                reply = template.format(gain=details['gain'])
+                reply = success_template.format(gain=details['gain'])
             case "CRITICAL":
-                template = heist_conf.get('critical_template', "暴击: +{gain:.2f}")
-                reply = template.format(gain=details['gain'])
+                reply = critical_template.format(gain=details['gain'])
             case "FAILURE":
-                template = heist_conf.get('failure_template', "失败: -{penalty:.2f}")
-                reply = template.format(penalty=details['penalty'])
+                reply = failure_template.format(penalty=details['penalty'])
             case "DISABLED":
-                reply = heist_conf.get('disabled_template', "⚔️ 打劫活动尚未开启。" )
+                reply = disabled_template
             case "ROBBER_NOT_BOUND":
-                reply = heist_conf.get('robber_not_bound_template', "🤔 请先绑定账号。" )
+                reply = robber_not_bound_template
             case "VICTIM_NOT_FOUND":
-                template = heist_conf.get('victim_not_found_template', "💨 未找到目标 {victim_identifier}。" )
-                reply = template.format(victim_identifier=f" @{victim_qq_id}")
+                reply = victim_not_found_template.format(victim_identifier=f" @{victim_qq_id}")
             case "CANNOT_ROB_SELF":
-                reply = heist_conf.get('cannot_rob_self_template', "🤦‍♂️ 不能打劫自己。" )
+                reply = cannot_rob_self_template
             case "ATTEMPTS_EXCEEDED":
-                reply = heist_conf.get('attempts_exceeded_template', "🥵 次数用尽。" )
+                reply = attempts_exceeded_template
             case "DEFENSES_EXCEEDED":
-                template = heist_conf.get('defenses_exceeded_template', "🛡️ 对方已有防备 (ID:{victim_id})。" )
-                reply = template.format(victim_id=details['victim_id'])
+                reply = defenses_exceeded_template.format(victim_id=details['victim_id'])
             case "API_ERROR":
                 reply = "- 发生了一个API错误，请联系管理员。"
             case _:
@@ -424,6 +433,9 @@ QQ号: {binding['qq_id']}
             return
         
         try:
+            template = pm_conf.get('bind_success_pm_template', "绑定成功！")
+            group = self.config.get('binding_settings.binding_group', 'default')
+
             user_nickname = str(user_qq_id)
             try:
                 stranger_info = await event.bot.get_stranger_info(user_id=user_qq_id, no_cache=True)
@@ -436,9 +448,6 @@ QQ号: {binding['qq_id']}
             if api_user_data:
                 site_username = api_user_data.get("username", "未知")
 
-            template = pm_conf.get('bind_success_pm_template', "绑定成功！")
-            group = self.config.get('binding_settings.binding_group', 'default')
-            
             content = template.format(
                 id=website_user_id,
                 group=group,
